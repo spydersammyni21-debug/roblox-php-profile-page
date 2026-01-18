@@ -1,0 +1,17 @@
+RewriteEngine On
+
+# If file or directory exists, do not rewrite
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Roblox API rewrites
+RewriteRule ^showcases-api/v1/users/profile/playerassets-json$ /server/apis/showcasesApi.php [QSA,L]
+RewriteRule ^showcases-api/v1/users/profile/playerassets-json$ /server/apis/showcasesApis.php [QSA,L]
+RewriteRule ^v1/users/([0-9]+)/groups/roles$ /server/apis/groupsRoles.php?type=groupsRoles&userId=$1 [QSA,L]
+RewriteRule ^showcases-api/v1/users/profile/robloxcollections-json$ /server/apis/showcasesCollections.php [QSA,L]
+RewriteRule ^v1/users/([0-9]+)/groups/primary/role$ /v1/users/role.php?userId=$1 [QSA,L]
+
+# Rewrite extensionless URLs to .php (catch-all)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.+)$ $1.php [L,QSA]

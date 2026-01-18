@@ -1,0 +1,12 @@
+function Res(&$b) {
+    $replacements = [
+        'EnvironmentUrls' => '/server/javascript/web/EnvironmentUrls.js',
+        'PresenceStatus' => '/server/javascript/web/PresenceStatus.js',
+    ];
+
+    foreach ($replacements as $bundle => $local) {
+        if (preg_match('/<(script|link)[^>]+data-bundlename="' . preg_quote($bundle, '/') . '"[^>]+(?:src|href)="([^"]+)"/i', $b, $m)) {
+            $b = str_replace($m[2], $local, $b);
+        }
+    }
+}
